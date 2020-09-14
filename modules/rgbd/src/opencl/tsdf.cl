@@ -47,14 +47,20 @@ void preCalculationPixNorm (int depth_rows, int depth_cols,
     for (int i = 0; i < height; i++)
         y[i] = ((float)(i) - cxy.y) / fxy.y;
 
+    
+    int counter = 0;
     for (int i = 0; i < height; i++)
     {
         for (int j = 0; j < widht; j++)
         {
+        counter++;
             //pixNorm[i*480 + j] = sqrt(x[j] * x[j] + y[i] * y[i] + 1.0f);
+            printf("%d %d %d %f \n",counter, i, j,sqrt(x[j] * x[j] + y[i] * y[i] + 1.0f));
             pixNorms[i*480 + j] = sqrt(x[j] * x[j] + y[i] * y[i] + 1.0f);
+printf("3 \n");
         }
     }
+
     
     //pixNorms = &pixNorm;
 }
@@ -73,10 +79,11 @@ __kernel void integrate(__global const char * depthptr,
                         const float truncDist,
                         const int maxWeight)
 {
-    
+   
     float* pixNorms; 
     preCalculationPixNorm(depth_rows, depth_cols, fxy, cxy, pixNorms);
-
+    printf("2 \n");
+    
     int x = get_global_id(0);
     int y = get_global_id(1);
 
@@ -186,8 +193,13 @@ __kernel void integrate(__global const char * depthptr,
         if(v == 0)
             continue;
 
+        printf("1 \n");
+        if (!(projected.x >= 0 && projected.x < depth_rows && 
+              projected.y >= 0 && projected.y < depth_cols))
+            continue;
         //float pixNorm = length(camPixVec);
         float pixNorm = pixNorms[(int)(floor(projected.x) * 480 + floor(projected.y))];
+        printf("%f \n", pixNorm);
 
         // difference between distances of point and of surface to camera
         float sdf = pixNorm*(v*dfac - camSpacePt.z);
