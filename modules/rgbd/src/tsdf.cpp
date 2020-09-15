@@ -1202,17 +1202,9 @@ void TSDFVolumeGPU::reset()
     volume.setTo(Scalar(0, 0));
 }
 
-void preCalculationPixNormGPU(int depth_rows, int depth_cols, 
+UMat preCalculationPixNormGPU(int depth_rows, int depth_cols, 
                               Vec2f fxy, Vec2f cxy, Point3i volResolution)
 {
-    std::vector<float> x(depth_rows);
-    std::vector<float> y(depth_cols);
-
-    for (int i = 0; i < depth_cols; i++)
-        x[i] = (i - cxy[0]) / fxy[0];
-    for (int i = 0; i < depth_rows; i++)
-        y[i] = (i - cxy[1]) / fxy[1];
-
     cv::String errorStr;
     cv::String name = "preCalculationPixNorm";
     ocl::ProgramSource source = ocl::rgbd::tsdf_oclsrc;
@@ -1220,12 +1212,13 @@ void preCalculationPixNormGPU(int depth_rows, int depth_cols,
     ocl::Kernel kk;
     kk.create(name.c_str(), source, options, &errorStr);
 
+
     if (kk.empty())
         throw std::runtime_error("Failed to create kernel: " + errorStr);
 
-    Mat pixNorm(depth_rows, depth_cols, CV_32F);
+    Mat pixNorm1(depth_rows, depth_cols, CV_32F);
     AccessFlag af = ACCESS_READ;
-    UMat tmp1 = pixNorm.getUMat(af);
+    UMat tmp1 = pixNorm1.getUMat(af);
 
     kk.args(depth_rows, depth_cols, fxy, cxy, ocl::KernelArg::PtrReadWrite(tmp1));
 
@@ -1237,6 +1230,13 @@ void preCalculationPixNormGPU(int depth_rows, int depth_cols,
 
     if (!kk.run(1, globalSize, NULL, true))
         throw std::runtime_error("Failed to run kernel");
+
+    return tmp1;
+
+    //std::cout << "" << tmp1 << std::endl;
+    //std::cout << "" << std::endl;
+    //std::cout << "" << std::endl;
+    //std::cout << "" << std::endl;
 }
 
 // use depth instead of distance (optimization)
@@ -1262,8 +1262,12 @@ void TSDFVolumeGPU::integrate(InputArray _depth, float depthFactor,
     float dfac = 1.f/depthFactor;
     Vec4i volResGpu(volResolution.x, volResolution.y, volResolution.z);
     Vec2f fxy(intrinsics.fx, intrinsics.fy), cxy(intrinsics.cx, intrinsics.cy);
+    
+    //Mat pixNorm(depth.rows, depth.cols, CV_32F);
+    UMat pixNorm = preCalculationPixNormGPU(depth.rows, depth.cols, fxy, cxy, volResolution);
+    
+    std::cout << pixNorm << std::endl;
 
-    preCalculationPixNormGPU(depth.rows, depth.cols, fxy, cxy, volResolution);
 
     // TODO: optimization possible
     // Use sampler for depth (mask needed)
