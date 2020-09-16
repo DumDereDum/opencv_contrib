@@ -1269,13 +1269,15 @@ void TSDFVolumeGPU::integrate(InputArray _depth, float depthFactor,
     
     //Mat pixNorm(depth.rows, depth.cols, CV_32F);
     UMat pixNorm = preCalculationPixNormGPU(depth.rows, depth.cols, fxy, cxy, volResolution);
-    Mat tmp = pixNorm.getMat(ACCESS_READ);
+    //Mat tmp = pixNorm.getMat(ACCESS_READ);
+    //auto ppp = ocl::KernelArg::PtrReadWrite(pixNorm);
+    //auto ppp = ocl::KernelArg::ReadOnly(pixNorm);
 
     //std::cout << tmp.at<float>(1, 400) << std::endl;
     //std::cout << tmp.cols << " " << tmp.rows << std::endl;
 
-    for (int i = 0; i < depth.rows*depth.cols; i++)
-        std::cout << i << " "<< tmp.at<float>(0, i) << std::endl;
+    //for (int i = 0; i < depth.rows*depth.cols; i++)
+    //    std::cout << i << " "<< tmp.at<float>(0, i) << std::endl;
 
     // TODO: optimization possible
     // Use sampler for depth (mask needed)
@@ -1290,7 +1292,8 @@ void TSDFVolumeGPU::integrate(InputArray _depth, float depthFactor,
            cxy.val,
            dfac,
            truncDist,
-           maxWeight);
+           maxWeight,
+           ocl::KernelArg::PtrReadWrite(pixNorm));
 
     size_t globalSize[2];
     globalSize[0] = (size_t)volResolution.x;
@@ -1298,6 +1301,7 @@ void TSDFVolumeGPU::integrate(InputArray _depth, float depthFactor,
 
     if(!k.run(2, globalSize, NULL, true))
         throw std::runtime_error("Failed to run kernel");
+    std::cout << "gag" << std::endl;
 }
 
 

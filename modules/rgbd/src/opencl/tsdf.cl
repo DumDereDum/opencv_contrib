@@ -69,7 +69,8 @@ __kernel void integrate(__global const char * depthptr,
                         const float2 cxy,
                         const float dfac,
                         const float truncDist,
-                        const int maxWeight)
+                        const int maxWeight,
+                         __global float * pixNorms)
 {
     
     int x = get_global_id(0);
@@ -181,6 +182,7 @@ __kernel void integrate(__global const char * depthptr,
         if(v == 0)
             continue;
 
+        int idx = projected.x * 480 + projected.y;
         float pixNorm = length(camPixVec);
 
         // difference between distances of point and of surface to camera
