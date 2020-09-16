@@ -1301,7 +1301,7 @@ void TSDFVolumeGPU::integrate(InputArray _depth, float depthFactor,
 
     if(!k.run(2, globalSize, NULL, true))
         throw std::runtime_error("Failed to run kernel");
-    std::cout << "gag" << std::endl;
+    //std::cout << "gag" << std::endl;
 }
 
 

@@ -183,7 +183,8 @@ __kernel void integrate(__global const char * depthptr,
             continue;
 
         int idx = projected.x * 480 + projected.y;
-        float pixNorm = length(camPixVec);
+        float pixNorm = pixNorms[idx];
+        //float pixNorm = length(camPixVec);
 
         // difference between distances of point and of surface to camera
         float sdf = pixNorm*(v*dfac - camSpacePt.z);
