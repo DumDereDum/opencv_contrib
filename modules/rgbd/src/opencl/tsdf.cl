@@ -32,13 +32,11 @@ static inline float tsdfToFloat(TsdfType num)
 
 __kernel void preCalculationPixNorm (int depth_rows, int depth_cols, 
                                     const float2 fxy, const float2 cxy,
-                                    //__global float pixNorms[480*640])
-                                    __global float * pixNorms)
+                                    __global float * pixNorms,
+                                    __global float * xx)
 {    
     int height = depth_rows;
     int widht  = depth_cols;
-    int h = HEIGHT; // 480
-    int w = WIDHT;  // 640
     float x[640];
     float y[480];
     float pixNorm[480*640];
@@ -53,10 +51,11 @@ __kernel void preCalculationPixNorm (int depth_rows, int depth_cols,
         for (int j = 0; j < widht; j++)
         {
             int idx = i*480 + j;
-            pixNorms[idx] = sqrt(x[j] * x[j] + y[i] * y[i] + 1.0f);
+            pixNorms[idx] = sqrt(xx[j] * xx[j] + y[i] * y[i] + 1.0f);
             //printf("%d %f \n", idx, pixNorm[idx]);
         }
     }
+
 }
 
 __kernel void integrate(__global const char * depthptr,
