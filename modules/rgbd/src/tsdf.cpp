@@ -1228,7 +1228,8 @@ UMat preCalculationPixNormGPU(int depth_rows, int depth_cols,
     AccessFlag af = ACCESS_READ;
     UMat tmp1 = pixNorm1.getUMat(af);
     UMat xx = x.getUMat(af);
-    kk.args(depth_rows, depth_cols, fxy, cxy, ocl::KernelArg::PtrReadWrite(tmp1), ocl::KernelArg::PtrReadWrite(xx));
+    UMat yy = y.getUMat(af);
+    kk.args(depth_rows, depth_cols, fxy, cxy, ocl::KernelArg::PtrReadWrite(tmp1), ocl::KernelArg::PtrReadWrite(xx), ocl::KernelArg::PtrReadWrite(yy));
 
     size_t globalSize[2];
     //globalSize[0] = (size_t)volResolution.x;
