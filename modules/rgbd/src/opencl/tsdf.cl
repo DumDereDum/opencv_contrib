@@ -30,31 +30,14 @@ static inline float tsdfToFloat(TsdfType num)
 #define HEIGHT 480;
 #define WIDHT 640;
 
-__kernel void preCalculationPixNorm (int depth_rows, int depth_cols,
-                                    __global float * pixNorms,
-                                    __global float * xx,
-                                    __global float * yy)
+__kernel void preCalculationPixNorm (__global float * pixNorms,
+                                     __global float * xx,
+                                     __global float * yy)
 {    
     int i = get_global_id(0);
     int j = get_global_id(1);
-    //printf("%d %d \n", x, y);
     int idx = i*480 + j;
     pixNorms[idx] = sqrt(xx[j] * xx[j] + yy[i] * yy[i] + 1.0f);
-
-/*
-    int height = depth_rows;
-    int widht  = depth_cols;
-
-    for (int i = 0; i < height; i++)
-    {
-        for (int j = 0; j < widht; j++)
-        {
-            int idx = i*480 + j;
-            pixNorms[idx] = sqrt(xx[j] * xx[j] + yy[i] * yy[i] + 1.0f);
-            //printf("%d %f \n", idx, pixNorm[idx]);
-        }
-    }
-*/
 }
 
 __kernel void integrate(__global const char * depthptr,
