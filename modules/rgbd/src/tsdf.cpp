@@ -1267,8 +1267,16 @@ void TSDFVolumeGPU::integrate(InputArray _depth, float depthFactor,
     float dfac = 1.f/depthFactor;
     Vec4i volResGpu(volResolution.x, volResolution.y, volResolution.z);
     Vec2f fxy(intrinsics.fx, intrinsics.fy), cxy(intrinsics.cx, intrinsics.cy);
-    
-    UMat pixNorms = preCalculationPixNormGPU(depth.rows, depth.cols, fxy, cxy, volResolution);
+    if (!(frameParams[0] == depth.rows && frameParams[1] == depth.cols &&
+        frameParams[2] == intrinsics.fx && frameParams[3] == intrinsics.fy &&
+        frameParams[4] == intrinsics.cx && frameParams[5] == intrinsics.cy))
+    {
+        frameParams[0] = (float)depth.rows; frameParams[1] = (float)depth.cols;
+        frameParams[2] = intrinsics.fx;     frameParams[3] = intrinsics.fy;
+        frameParams[4] = intrinsics.cx;     frameParams[5] = intrinsics.cy;
+
+        pixNorms = preCalculationPixNormGPU(depth.rows, depth.cols, fxy, cxy, volResolution);
+    }
 
     // TODO: optimization possible
     // Use sampler for depth (mask needed)
