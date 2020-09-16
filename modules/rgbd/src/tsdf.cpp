@@ -1229,15 +1229,15 @@ UMat preCalculationPixNormGPU(int depth_rows, int depth_cols,
     UMat tmp1 = pixNorm1.getUMat(af);
     UMat xx = x.getUMat(af);
     UMat yy = y.getUMat(af);
-    kk.args(depth_rows, depth_cols, fxy, cxy, ocl::KernelArg::PtrReadWrite(tmp1), ocl::KernelArg::PtrReadWrite(xx), ocl::KernelArg::PtrReadWrite(yy));
+    kk.args(depth_rows, depth_cols, ocl::KernelArg::PtrReadWrite(tmp1), ocl::KernelArg::PtrReadWrite(xx), ocl::KernelArg::PtrReadWrite(yy));
 
     size_t globalSize[2];
     //globalSize[0] = (size_t)volResolution.x;
     //globalSize[1] = (size_t)volResolution.y;
-    globalSize[0] = 1;
-    globalSize[1] = 1;
+    globalSize[0] = depth_cols;
+    globalSize[1] = depth_rows;
 
-    if (!kk.run(1, globalSize, NULL, true))
+    if (!kk.run(2, globalSize, NULL, true))
         throw std::runtime_error("Failed to run kernel");
 
     return tmp1;
