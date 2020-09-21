@@ -104,6 +104,8 @@ class HashTSDFVolumeCPU : public HashTSDFVolume
     //! Hashtable of individual smaller volume units
     VolumeUnitMap volumeUnits;
 };
+
+
 cv::Ptr<HashTSDFVolume> makeHashTSDFVolume(float _voxelSize, cv::Matx44f _pose,
                                            float _raycastStepFactor, float _truncDist,
                                            int _maxWeight, float truncateThreshold,
