@@ -23,6 +23,7 @@ namespace kinfu
 typedef int8_t TsdfType;
 typedef uchar WeightType;
 
+
 struct TsdfVoxel
 {
     TsdfType tsdf;

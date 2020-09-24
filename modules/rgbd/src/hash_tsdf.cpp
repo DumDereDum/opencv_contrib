@@ -133,7 +133,8 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
     {
         VolumeUnit& vu = volumeUnits[idx];
         Matx44f subvolumePose = pose.translate(volumeUnitIdxToVolume(idx)).matrix;
-        vu.pVolume = makePtr<TSDFVolumeCPU>(voxelSize, subvolumePose, raycastStepFactor, truncDist, maxWeight, volumeDims);
+        //vu.pVolume = makePtr<TSDFVolumeCPU>(voxelSize, subvolumePose, raycastStepFactor, truncDist, maxWeight, volumeDims);
+        vu.pVolume = makePtr<NewVolume>(voxelSize, subvolumePose, raycastStepFactor, truncDist, maxWeight, volumeDims);
         //! This volume unit will definitely be required for current integration
         vu.isActive = true;
     }
@@ -232,8 +233,10 @@ inline TsdfVoxel HashTSDFVolumeCPU::at(const cv::Vec3i& volumeIdx) const
         dummy.weight = 0;
         return dummy;
     }
-    cv::Ptr<TSDFVolumeCPU> volumeUnit =
-        std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+    //cv::Ptr<TSDFVolumeCPU> volumeUnit =
+    //    std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+    cv::Ptr<NewVolume> volumeUnit =
+        std::dynamic_pointer_cast<NewVolume>(it->second.pVolume);
 
     cv::Vec3i volUnitLocalIdx = volumeIdx - cv::Vec3i(volumeUnitIdx[0] * volumeUnitResolution,
                                                       volumeUnitIdx[1] * volumeUnitResolution,
@@ -255,8 +258,10 @@ inline TsdfVoxel HashTSDFVolumeCPU::at(const cv::Point3f& point) const
         dummy.weight = 0;
         return dummy;
     }
-    cv::Ptr<TSDFVolumeCPU> volumeUnit =
-        std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+    //cv::Ptr<TSDFVolumeCPU> volumeUnit =
+    //    std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+    cv::Ptr<NewVolume> volumeUnit =
+        std::dynamic_pointer_cast<NewVolume>(it->second.pVolume);
 
     cv::Point3f volumeUnitPos = volumeUnitIdxToVolume(volumeUnitIdx);
     cv::Vec3i volUnitLocalIdx = volumeToVoxelCoord(point - volumeUnitPos);
@@ -291,7 +296,8 @@ inline TsdfVoxel atVolumeUnit(const Vec3i& point, const Vec3i& volumeUnitIdx, Vo
         dummy.weight = 0;
         return dummy;
     }
-    Ptr<TSDFVolumeCPU> volumeUnit = std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+    //Ptr<TSDFVolumeCPU> volumeUnit = std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+    Ptr<NewVolume> volumeUnit = std::dynamic_pointer_cast<NewVolume>(it->second.pVolume);
 
     Vec3i volUnitLocalIdx = point - volumeUnitIdx * unitRes;
 
@@ -573,7 +579,8 @@ struct HashRaycastInvoker : ParallelLoopBody
 
                 float tprev       = tcurr;
                 float prevTsdf = volume.truncDist;
-                cv::Ptr<TSDFVolumeCPU> currVolumeUnit;
+                //cv::Ptr<TSDFVolumeCPU> currVolumeUnit;
+                cv::Ptr<NewVolume> currVolumeUnit;
                 while (tcurr < tmax)
                 {
                     Point3f currRayPos          = orig + tcurr * rayDirV;
@@ -590,7 +597,8 @@ struct HashRaycastInvoker : ParallelLoopBody
                     if (it != volume.volumeUnits.end())
                     {
                         currVolumeUnit =
-                            std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+                            //std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+                            std::dynamic_pointer_cast<NewVolume>(it->second.pVolume);
                         cv::Point3f currVolUnitPos =
                             volume.volumeUnitIdxToVolume(currVolumeUnitIdx);
                         volUnitLocalIdx = volume.volumeToVoxelCoord(currRayPos - currVolUnitPos);
@@ -684,8 +692,10 @@ struct HashFetchPointsNormalsInvoker : ParallelLoopBody
             Point3f base_point               = volume.volumeUnitIdxToVolume(tsdf_idx);
             if (it != volume.volumeUnits.end())
             {
-                cv::Ptr<TSDFVolumeCPU> volumeUnit =
-                    std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+                //cv::Ptr<TSDFVolumeCPU> volumeUnit =
+                //    std::dynamic_pointer_cast<TSDFVolumeCPU>(it->second.pVolume);
+                cv::Ptr<NewVolume> volumeUnit =
+                    std::dynamic_pointer_cast<NewVolume>(it->second.pVolume);
                 std::vector<ptype> localPoints;
                 std::vector<ptype> localNormals;
                 for (int x = 0; x < volume.volumeUnitResolution; x++)

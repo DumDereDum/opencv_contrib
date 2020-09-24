@@ -9,7 +9,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "tsdf.hpp"
+//#include "tsdf.hpp"
+#include "tsdf_volume.hpp"
 
 namespace cv
 {
@@ -40,7 +41,8 @@ struct VolumeUnit
     VolumeUnit() : pVolume(nullptr){};
     ~VolumeUnit() = default;
 
-    cv::Ptr<TSDFVolume> pVolume;
+    //cv::Ptr<TSDFVolume> pVolume;
+    cv::Ptr<NewVolume> pVolume;
     cv::Vec3i index;
     bool isActive;
 };
