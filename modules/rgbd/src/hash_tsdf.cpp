@@ -176,7 +176,8 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
         });
 
     //! Integrate the correct volumeUnits
-    parallel_for_(Range(0, (int)totalVolUnits.size()), [&](const Range& range) {
+    Range _range(0, (int)totalVolUnits.size());
+    auto integrate_ = [&](const Range& range) {
         for (int i = range.start; i < range.end; i++)
         {
             Vec3i tsdf_idx = totalVolUnits[i];
@@ -193,7 +194,10 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
                 volumeUnit.isActive = false;
             }
         }
-        });
+    };
+
+    //parallel_for_(_range, integrate_);
+    integrate_(_range);
 }
 
 cv::Vec3i HashTSDFVolumeCPU::volumeToVolumeUnitIdx(cv::Point3f p) const

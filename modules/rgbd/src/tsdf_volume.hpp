@@ -32,7 +32,7 @@ class CV_EXPORTS_W NewVolume
 {
     public:
         NewVolume(float _voxelSize, cv::Matx44f _pose, float _raycastStepFactor,
-            /*TSDFVolume*/ float _truncDist, int _maxWeight, Point3i _resolution);//, bool zFirstMemOrder);
+            /*TSDFVolume*/ float _truncDist, int _maxWeight, Point3i _resolution, bool zFirstMemOrder = true);
 
         virtual ~NewVolume() {};
 

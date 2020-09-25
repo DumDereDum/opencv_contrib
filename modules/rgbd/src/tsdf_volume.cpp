@@ -11,7 +11,7 @@ namespace cv
 namespace kinfu
 {
 	NewVolume::NewVolume(float _voxelSize, cv::Matx44f _pose, float _raycastStepFactor,
-        /*TSDFVolume*/   float _truncDist, int _maxWeight, Point3i _resolution)//, bool zFirstMemOrder)
+        /*TSDFVolume*/   float _truncDist, int _maxWeight, Point3i _resolution, bool zFirstMemOrder)
         : voxelSize(_voxelSize),
         voxelSizeInv(1.0f / voxelSize),
         pose(_pose),
@@ -31,7 +31,6 @@ namespace kinfu
         // &elem(x, y, z) = data + x*zRes*yRes + y*zRes + z;
         // &elem(x, y, z) = data + x + y*xRes + z*xRes*yRes;
         int xdim, ydim, zdim;
-        bool zFirstMemOrder = false;
         if (zFirstMemOrder)
         {
             xdim = volResolution.z * volResolution.y;
@@ -59,7 +58,7 @@ namespace kinfu
 
         // TSDF Volume CPU
         volume = Mat(1, volResolution.x * volResolution.y * volResolution.z, rawType<TsdfVoxel>());
-
+        //std::cout << 1;
         reset();
 
 	}
@@ -172,11 +171,13 @@ namespace kinfu
             dfac(1.f / depthFactor),
             pixNorms(_pixNorms)
         {
+        std::cout << "i";
             volDataStart = volume.volume.ptr<TsdfVoxel>();
         }
 
         virtual void operator() (const Range& range) const override
         {
+            std::cout << "3";
             for (int x = range.start; x < range.end; x++)
             {
                 TsdfVoxel* volDataX = volDataStart + x * volume.volDims[0];
@@ -250,6 +251,7 @@ namespace kinfu
                         float sdf = pixNorm * (v * dfac - camSpacePt.z);
                         // possible alternative is:
                         // kftype sdf = norm(camSpacePt)*(v*dfac/camSpacePt.z - 1);
+                        std::cout << "sdf: " << sdf << std::endl;
                         if (sdf >= -volume.truncDist)
                         {
                             TsdfType tsdf = floatToTsdf(fmin(1.f, sdf * truncDistInv));
@@ -257,7 +259,7 @@ namespace kinfu
                             TsdfVoxel& voxel = volDataY[z * volume.volDims[2]];
                             WeightType& weight = voxel.weight;
                             TsdfType& value = voxel.tsdf;
-
+                            std::cout << value << std::endl;
                             // update TSDF
                             value = floatToTsdf((tsdfToFloat(value) * weight + tsdfToFloat(tsdf)) / (weight + 1));
                             weight = min(int(weight + 1), int(volume.maxWeight));
@@ -306,6 +308,7 @@ namespace kinfu
     void NewVolume::integrate(InputArray _depth, float depthFactor, const cv::Matx44f& cameraPose,
         const cv::kinfu::Intr& intrinsics)
     {
+        std::cout << "integrate" << std::endl;
         CV_TRACE_FUNCTION();
 
         CV_Assert(_depth.type() == DEPTH_TYPE);
@@ -321,10 +324,117 @@ namespace kinfu
 
             pixNorms = preCalculationPixNorm(depth, intrinsics);
         }
-
-        IntegrateInvoker ii(*this, depth, intrinsics, cameraPose, depthFactor, pixNorms);
+        std::cout << 1;
+        //IntegrateInvoker ii(*this, depth, intrinsics, cameraPose, depthFactor, pixNorms);
         Range range(0, volResolution.x);
-        parallel_for_(range, ii);
+        //parallel_for_(range, ii);
+        //ii(range);
+        //std::cout << 2;
+
+        NewVolume volume(*this);
+        const Intr& intr(intrinsics);
+        const Intr::Projector proj(intrinsics.makeProjector());
+        const cv::Affine3f vol2cam(Affine3f(cameraPose.inv()) * volume.pose);
+        const float truncDistInv(1.f / volume.truncDist);
+        const float dfac(1.f / depthFactor);
+        TsdfVoxel* volDataStart = volume.volume.ptr<TsdfVoxel>();;
+
+
+        auto _IntegrateInvoker = [&](const Range& range)
+        {
+            std::cout << "3";
+            for (int x = range.start; x < range.end; x++)
+            {
+                TsdfVoxel* volDataX = volDataStart + x * volume.volDims[0];
+                for (int y = 0; y < volume.volResolution.y; y++)
+                {
+                    TsdfVoxel* volDataY = volDataX + y * volume.volDims[1];
+                    // optimization of camSpace transformation (vector addition instead of matmul at each z)
+                    Point3f basePt = vol2cam * (Point3f(float(x), float(y), 0.0f) * volume.voxelSize);
+                    Point3f camSpacePt = basePt;
+                    // zStep == vol2cam*(Point3f(x, y, 1)*voxelSize) - basePt;
+                    // zStep == vol2cam*[Point3f(x, y, 1) - Point3f(x, y, 0)]*voxelSize
+                    Point3f zStep = Point3f(vol2cam.matrix(0, 2),
+                        vol2cam.matrix(1, 2),
+                        vol2cam.matrix(2, 2)) * volume.voxelSize;
+                    int startZ, endZ;
+                    if (abs(zStep.z) > 1e-5)
+                    {
+                        int baseZ = int(-basePt.z / zStep.z);
+                        if (zStep.z > 0)
+                        {
+                            startZ = baseZ;
+                            endZ = volume.volResolution.z;
+                        }
+                        else
+                        {
+                            startZ = 0;
+                            endZ = baseZ;
+                        }
+                    }
+                    else
+                    {
+                        if (basePt.z > 0)
+                        {
+                            startZ = 0;
+                            endZ = volume.volResolution.z;
+                        }
+                        else
+                        {
+                            // z loop shouldn't be performed
+                            startZ = endZ = 0;
+                        }
+                    }
+                    startZ = max(0, startZ);
+                    endZ = min(volume.volResolution.z, endZ);
+
+                    for (int z = startZ; z < endZ; z++)
+                    {
+                        // optimization of the following:
+                        //Point3f volPt = Point3f(x, y, z)*volume.voxelSize;
+                        //Point3f camSpacePt = vol2cam * volPt;
+
+                        camSpacePt += zStep;
+                        if (camSpacePt.z <= 0)
+                            continue;
+
+                        Point3f camPixVec;
+                        Point2f projected = proj(camSpacePt, camPixVec);
+
+                        depthType v = bilinearDepth(depth, projected);
+                        if (v == 0) {
+                            continue;
+                        }
+
+                        int _u = projected.x;
+                        int _v = projected.y;
+                        if (!(_u >= 0 && _u < depth.rows && _v >= 0 && _v < depth.cols))
+                            continue;
+                        float pixNorm = pixNorms.at<float>(_u, _v);
+
+                        // difference between distances of point and of surface to camera
+                        float sdf = pixNorm * (v * dfac - camSpacePt.z);
+                        // possible alternative is:
+                        // kftype sdf = norm(camSpacePt)*(v*dfac/camSpacePt.z - 1);
+                        std::cout << "sdf: " << sdf << std::endl;
+                        if (sdf >= -volume.truncDist)
+                        {
+                            TsdfType tsdf = floatToTsdf(fmin(1.f, sdf * truncDistInv));
+
+                            TsdfVoxel& voxel = volDataY[z * volume.volDims[2]];
+                            WeightType& weight = voxel.weight;
+                            TsdfType& value = voxel.tsdf;
+                            std::cout << value << std::endl;
+                            // update TSDF
+                            value = floatToTsdf((tsdfToFloat(value) * weight + tsdfToFloat(tsdf)) / (weight + 1));
+                            weight = min(int(weight + 1), int(volume.maxWeight));
+                        }
+                    }
+                }
+            }
+        };
+        _IntegrateInvoker(range);
+        std::cout << 2;
     }
 
     void NewVolume::reset()
