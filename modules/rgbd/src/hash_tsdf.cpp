@@ -196,8 +196,8 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
         }
     };
 
-    //parallel_for_(_range, integrate_);
-    integrate_(_range);
+    parallel_for_(_range, integrate_);
+    //integrate_(_range);
 }
 
 cv::Vec3i HashTSDFVolumeCPU::volumeToVolumeUnitIdx(cv::Point3f p) const

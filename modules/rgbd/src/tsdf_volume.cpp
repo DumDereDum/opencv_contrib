@@ -177,7 +177,7 @@ namespace kinfu
 
         virtual void operator() (const Range& range) const override
         {
-            std::cout << "3";
+            //std::cout << "3";
             for (int x = range.start; x < range.end; x++)
             {
                 TsdfVoxel* volDataX = volDataStart + x * volume.volDims[0];
@@ -308,7 +308,7 @@ namespace kinfu
     void NewVolume::integrate(InputArray _depth, float depthFactor, const cv::Matx44f& cameraPose,
         const cv::kinfu::Intr& intrinsics)
     {
-        std::cout << "integrate" << std::endl;
+        //std::cout << "integrate" << std::endl;
         CV_TRACE_FUNCTION();
 
         CV_Assert(_depth.type() == DEPTH_TYPE);
@@ -324,7 +324,7 @@ namespace kinfu
 
             pixNorms = preCalculationPixNorm(depth, intrinsics);
         }
-        std::cout << 1;
+        //std::cout << 1;
         //IntegrateInvoker ii(*this, depth, intrinsics, cameraPose, depthFactor, pixNorms);
         Range range(0, volResolution.x);
         //parallel_for_(range, ii);
@@ -342,7 +342,7 @@ namespace kinfu
 
         auto _IntegrateInvoker = [&](const Range& range)
         {
-            std::cout << "3";
+            //std::cout << "3";
             for (int x = range.start; x < range.end; x++)
             {
                 TsdfVoxel* volDataX = volDataStart + x * volume.volDims[0];
@@ -408,15 +408,15 @@ namespace kinfu
 
                         int _u = projected.x;
                         int _v = projected.y;
-                        if (!(_u >= 0 && _u < depth.rows && _v >= 0 && _v < depth.cols))
+                        if (!(_u >= 0 && _u < depth.cols && _v >= 0 && _v < depth.rows))
                             continue;
-                        float pixNorm = pixNorms.at<float>(_u, _v);
+                        float pixNorm = pixNorms.at<float>(_v, _u);
 
                         // difference between distances of point and of surface to camera
                         float sdf = pixNorm * (v * dfac - camSpacePt.z);
                         // possible alternative is:
                         // kftype sdf = norm(camSpacePt)*(v*dfac/camSpacePt.z - 1);
-                        std::cout << "sdf: " << sdf << std::endl;
+                        //std::cout << "sdf: " << sdf << std::endl;
                         if (sdf >= -volume.truncDist)
                         {
                             TsdfType tsdf = floatToTsdf(fmin(1.f, sdf * truncDistInv));
@@ -424,7 +424,7 @@ namespace kinfu
                             TsdfVoxel& voxel = volDataY[z * volume.volDims[2]];
                             WeightType& weight = voxel.weight;
                             TsdfType& value = voxel.tsdf;
-                            std::cout << value << std::endl;
+                            //std::cout << value << std::endl;
                             // update TSDF
                             value = floatToTsdf((tsdfToFloat(value) * weight + tsdfToFloat(tsdf)) / (weight + 1));
                             weight = min(int(weight + 1), int(volume.maxWeight));
@@ -433,8 +433,9 @@ namespace kinfu
                 }
             }
         };
-        _IntegrateInvoker(range);
-        std::cout << 2;
+        parallel_for_(range, _IntegrateInvoker);
+        //_IntegrateInvoker(range);
+        //std::cout << 2;
     }
 
     void NewVolume::reset()
