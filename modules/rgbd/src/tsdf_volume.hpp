@@ -18,6 +18,7 @@ namespace kinfu
 
 typedef int8_t TsdfType;
 typedef uchar WeightType;
+
 /*
 struct TsdfVoxel
 {
@@ -38,13 +39,6 @@ class CV_EXPORTS_W NewVolume
 
         void integrate(InputArray _depth, float depthFactor, const cv::Matx44f& cameraPose,
             const cv::kinfu::Intr& intrinsics);
-        /*
-        virtual void raycast(const cv::Matx44f& cameraPose, const cv::kinfu::Intr& intrinsics,
-            cv::Size frameSize, cv::OutputArray points,
-            cv::OutputArray normals) const = 0;
-        virtual void fetchNormals(cv::InputArray points, cv::OutputArray _normals) const = 0;
-        virtual void fetchPointsNormals(cv::OutputArray points, cv::OutputArray normals) const = 0;
-        */
 
         void reset();
         
@@ -79,22 +73,3 @@ class CV_EXPORTS_W NewVolume
 }  // namespace kinfu
 }  // namespace cv
 #endif
-
-/*
-TSDFVolume::TSDFVolume(float _voxelSize, Matx44f _pose, float _raycastStepFactor, float _truncDist,
-                       int _maxWeight, Point3i _resolution, bool zFirstMemOrder)
-    : Volume(_voxelSize, _pose, _raycastStepFactor),
-      volResolution(_resolution),
-      maxWeight( WeightType(_maxWeight) )
-
-      TSDFVolumeCPU::TSDFVolumeCPU(float _voxelSize, cv::Matx44f _pose, float _raycastStepFactor,
-                             float _truncDist, int _maxWeight, Vec3i _resolution,
-                             bool zFirstMemOrder)
-    : TSDFVolume(_voxelSize, _pose, _raycastStepFactor, _truncDist, _maxWeight, _resolution,
-                 zFirstMemOrder)
-{
-    volume = Mat(1, volResolution.x * volResolution.y * volResolution.z, rawType<TsdfVoxel>());
-
-    reset();
-}
-*/

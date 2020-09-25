@@ -177,7 +177,7 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
 
     //! Integrate the correct volumeUnits
     Range _range(0, (int)totalVolUnits.size());
-    auto integrate_ = [&](const Range& range) {
+    auto _integrate = [&](const Range& range) {
         for (int i = range.start; i < range.end; i++)
         {
             Vec3i tsdf_idx = totalVolUnits[i];
@@ -196,7 +196,7 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
         }
     };
 
-    parallel_for_(_range, integrate_);
+    parallel_for_(_range, _integrate);
     //integrate_(_range);
 }
 
