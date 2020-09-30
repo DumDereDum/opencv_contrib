@@ -103,6 +103,8 @@ class HashTSDFVolumeCPU : public HashTSDFVolume
     cv::Vec3i volumeToVoxelCoord(cv::Point3f point) const;
 
    public:
+       Vec6f frameParams;
+       Mat pixNorms;
     //! Hashtable of individual smaller volume units
     VolumeUnitMap volumeUnits;
 };

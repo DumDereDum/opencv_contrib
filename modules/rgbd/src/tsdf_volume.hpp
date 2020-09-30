@@ -19,16 +19,6 @@ namespace kinfu
 typedef int8_t TsdfType;
 typedef uchar WeightType;
 
-/*
-struct TsdfVoxel
-{
-    TsdfType tsdf;
-    WeightType weight;
-};
-*/
-
-//typedef Vec<uchar, sizeof(TsdfVoxel)> VecTsdfVoxel;
-
 class CV_EXPORTS_W NewVolume
 {
     public:
@@ -38,7 +28,7 @@ class CV_EXPORTS_W NewVolume
         virtual ~NewVolume() {};
 
         void integrate(InputArray _depth, float depthFactor, const cv::Matx44f& cameraPose,
-            const cv::kinfu::Intr& intrinsics);
+            const cv::kinfu::Intr& intrinsics, InputArray pixNorms);
 
         void reset();
         
@@ -62,8 +52,8 @@ class CV_EXPORTS_W NewVolume
         Vec8i neighbourCoords;
 
         // TSDF Volume CPU
-        Vec6f frameParams;
-        Mat pixNorms;
+        //Vec6f frameParams;
+        //Mat pixNorms;
         // See zFirstMemOrder arg of parent class constructor
         // for the array layout info
         // Consist of Voxel elements

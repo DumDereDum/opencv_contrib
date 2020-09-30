@@ -37,6 +37,30 @@ static inline float tsdfToFloat(TsdfType num)
     return float(num) * (-1.f / 128.f);
 }
 
+static cv::Mat preCalculationPixNorm(Depth depth, const Intr& intrinsics)
+{
+    int height = depth.rows;
+    int widht = depth.cols;
+    Point2f fl(intrinsics.fx, intrinsics.fy);
+    Point2f pp(intrinsics.cx, intrinsics.cy);
+    Mat pixNorm(height, widht, CV_32F);
+    std::vector<float> x(widht);
+    std::vector<float> y(height);
+    for (int i = 0; i < widht; i++)
+        x[i] = (i - pp.x) / fl.x;
+    for (int i = 0; i < height; i++)
+        y[i] = (i - pp.y) / fl.y;
+
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < widht; j++)
+        {
+            pixNorm.at<float>(i, j) = sqrtf(x[j] * x[j] + y[i] * y[i] + 1.0f);
+        }
+    }
+    return pixNorm;
+}
+
 HashTSDFVolume::HashTSDFVolume(float _voxelSize, cv::Matx44f _pose, float _raycastStepFactor,
                                float _truncDist, int _maxWeight, float _truncateThreshold,
                                int _volumeUnitRes, bool _zFirstMemOrder)
@@ -175,6 +199,17 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
         }
         });
 
+    if (!(frameParams[0] == depth.rows && frameParams[1] == depth.cols &&
+        frameParams[2] == intrinsics.fx && frameParams[3] == intrinsics.fy &&
+        frameParams[4] == intrinsics.cx && frameParams[5] == intrinsics.cy))
+    {
+        frameParams[0] = (float)depth.rows; frameParams[1] = (float)depth.cols;
+        frameParams[2] = intrinsics.fx;     frameParams[3] = intrinsics.fy;
+        frameParams[4] = intrinsics.cx;     frameParams[5] = intrinsics.cy;
+
+        pixNorms = preCalculationPixNorm(depth, intrinsics);
+    }
+
     //! Integrate the correct volumeUnits
     Range _range(0, (int)totalVolUnits.size());
     auto _integrate = [&](const Range& range) {
@@ -189,7 +224,7 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
             if (volumeUnit.isActive)
             {
                 //! The volume unit should already be added into the Volume from the allocator
-                volumeUnit.pVolume->integrate(depth, depthFactor, cameraPose, intrinsics);
+                volumeUnit.pVolume->integrate(depth, depthFactor, cameraPose, intrinsics, pixNorms);
                 //! Ensure all active volumeUnits are set to inactive for next integration
                 volumeUnit.isActive = false;
             }
@@ -197,7 +232,7 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
     };
 
     parallel_for_(_range, _integrate);
-    //integrate_(_range);
+    //_integrate(_range);
 }
 
 cv::Vec3i HashTSDFVolumeCPU::volumeToVolumeUnitIdx(cv::Point3f p) const

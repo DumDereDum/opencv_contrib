@@ -157,33 +157,9 @@ namespace kinfu
         }
     }
 
-    static cv::Mat preCalculationPixNorm(Depth depth, const Intr& intrinsics)
-    {
-        int height = depth.rows;
-        int widht = depth.cols;
-        Point2f fl(intrinsics.fx, intrinsics.fy);
-        Point2f pp(intrinsics.cx, intrinsics.cy);
-        Mat pixNorm(height, widht, CV_32F);
-        std::vector<float> x(widht);
-        std::vector<float> y(height);
-        for (int i = 0; i < widht; i++)
-            x[i] = (i - pp.x) / fl.x;
-        for (int i = 0; i < height; i++)
-            y[i] = (i - pp.y) / fl.y;
-
-        for (int i = 0; i < height; i++)
-        {
-            for (int j = 0; j < widht; j++)
-            {
-                pixNorm.at<float>(i, j) = sqrtf(x[j] * x[j] + y[i] * y[i] + 1.0f);
-            }
-        }
-        return pixNorm;
-    }
-
     // use depth instead of distance (optimization)
     void NewVolume::integrate(InputArray _depth, float depthFactor, const cv::Matx44f& cameraPose,
-        const cv::kinfu::Intr& intrinsics)
+        const cv::kinfu::Intr& intrinsics, InputArray _pixNorms)
     {
         //std::cout << "integrate" << std::endl;
         CV_TRACE_FUNCTION();
@@ -191,16 +167,7 @@ namespace kinfu
         CV_Assert(_depth.type() == DEPTH_TYPE);
         CV_Assert(!_depth.empty());
         Depth depth = _depth.getMat();
-        if (!(frameParams[0] == depth.rows && frameParams[1] == depth.cols &&
-            frameParams[2] == intrinsics.fx && frameParams[3] == intrinsics.fy &&
-            frameParams[4] == intrinsics.cx && frameParams[5] == intrinsics.cy))
-        {
-            frameParams[0] = (float)depth.rows; frameParams[1] = (float)depth.cols;
-            frameParams[2] = intrinsics.fx;     frameParams[3] = intrinsics.fy;
-            frameParams[4] = intrinsics.cx;     frameParams[5] = intrinsics.cy;
-
-            pixNorms = preCalculationPixNorm(depth, intrinsics);
-        }
+        Mat pixNorms = _pixNorms.getMat();
 
         Range range(0, volResolution.x);
 
