@@ -87,6 +87,7 @@ void HashTSDFVolumeCPU::reset()
 {
     CV_TRACE_FUNCTION();
     volumeUnits.clear();
+    _volumeUnits.clear();
 }
 
 void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Matx44f& cameraPose, const Intr& intrinsics)
@@ -145,6 +146,15 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
                 this->volumeUnits.emplace(tsdf_idx, VolumeUnit());
                 newIndices.emplace(tsdf_idx);
             }
+            
+            //! If the insert into the global set passes
+            if (!this->_volumeUnits.count(tsdf_idx))
+            {
+                // Volume allocation can be performed outside of the lock
+                this->_volumeUnits.emplace(tsdf_idx, _VolumeUnit());
+                newIndices.emplace(tsdf_idx);
+            }
+
         }
         mutex.unlock();
     };
@@ -153,26 +163,46 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
     //! Perform the allocation
     int res = volumeUnitResolution;
     Point3i volumeDims(res, res, res);
+
     for (auto idx : newIndices)
     {
         VolumeUnit& vu = volumeUnits[idx];
         Matx44f subvolumePose = pose.translate(volumeUnitIdxToVolume(idx)).matrix;
-        //vu.pVolume = makePtr<TSDFVolumeCPU>(voxelSize, subvolumePose, raycastStepFactor, truncDist, maxWeight, volumeDims);
         vu.pVolume = makePtr<NewVolume>(voxelSize, subvolumePose, raycastStepFactor, truncDist, maxWeight, volumeDims);
         //! This volume unit will definitely be required for current integration
         vu.isActive = true;
     }
-
+    
+    for (auto idx : newIndices)
+    {
+        _VolumeUnit& vu = _volumeUnits[idx];
+        Matx44f subvolumePose = pose.translate(volumeUnitIdxToVolume(idx)).matrix;
+        vu.pVolume = makePtr<_NewVolume>(voxelSize, subvolumePose, raycastStepFactor, truncDist, maxWeight, volumeDims);
+        vu.volume = Mat(1, volumeDims.x * volumeDims.y * volumeDims.z, rawType<TsdfVoxel>());
+        vu.volume.forEach<VecTsdfVoxel>([](VecTsdfVoxel& vv, const int* /* position */)
+            {
+                TsdfVoxel& v = reinterpret_cast<TsdfVoxel&>(vv);
+                v.tsdf = floatToTsdf(0.0f); v.weight = 0;
+            });
+        //! This volume unit will definitely be required for current integration
+        vu.isActive = true;
+    }
+    
     //! Get keys for all the allocated volume Units
     std::vector<Vec3i> totalVolUnits;
-    for (const auto& keyvalue : volumeUnits)
+    //for (const auto& keyvalue : volumeUnits)
+    //{
+    //    totalVolUnits.push_back(keyvalue.first);
+    //}
+    for (const auto& keyvalue : _volumeUnits)
     {
         totalVolUnits.push_back(keyvalue.first);
     }
 
     //! Mark volumes in the camera frustum as active
+
     Range inFrustumRange(0, (int)volumeUnits.size());
-    parallel_for_(inFrustumRange, [&](const Range& range) {
+    auto function = [&](const Range& range) {
         const Affine3f vol2cam(Affine3f(cameraPose.inv()) * pose);
         const Intr::Projector proj(intrinsics.makeProjector());
 
@@ -197,7 +227,38 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
                 it->second.isActive = true;
             }
         }
-        });
+    };
+    parallel_for_(inFrustumRange, function);
+   
+    Range _inFrustumRange(0, (int)_volumeUnits.size());
+    auto _function = [&](const Range& range) {
+        const Affine3f vol2cam(Affine3f(cameraPose.inv()) * pose);
+        const Intr::Projector proj(intrinsics.makeProjector());
+
+        for (int i = range.start; i < range.end; ++i)
+        {
+            Vec3i tsdf_idx = totalVolUnits[i];
+            _VolumeUnitMap::iterator it = _volumeUnits.find(tsdf_idx);
+            if (it == _volumeUnits.end())
+                return;
+
+            Point3f volumeUnitPos = volumeUnitIdxToVolume(it->first);
+            Point3f volUnitInCamSpace = vol2cam * volumeUnitPos;
+            if (volUnitInCamSpace.z < 0 || volUnitInCamSpace.z > truncateThreshold)
+            {
+                it->second.isActive = false;
+                return;
+            }
+            Point2f cameraPoint = proj(volUnitInCamSpace);
+            if (cameraPoint.x >= 0 && cameraPoint.y >= 0 && cameraPoint.x < depth.cols && cameraPoint.y < depth.rows)
+            {
+                assert(it != _volumeUnits.end());
+                it->second.isActive = true;
+            }
+        }
+    };
+    parallel_for_(_inFrustumRange, _function);
+    
 
     if (!(frameParams[0] == depth.rows && frameParams[1] == depth.cols &&
         frameParams[2] == intrinsics.fx && frameParams[3] == intrinsics.fy &&
@@ -209,6 +270,7 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
 
         pixNorms = preCalculationPixNorm(depth, intrinsics);
     }
+
 
     //! Integrate the correct volumeUnits
     Range _range(0, (int)totalVolUnits.size());
@@ -233,6 +295,30 @@ void HashTSDFVolumeCPU::integrate(InputArray _depth, float depthFactor, const Ma
 
     parallel_for_(_range, _integrate);
     //_integrate(_range);
+
+    //! Integrate the correct volumeUnits
+    Range __range(0, (int)totalVolUnits.size());
+    auto __integrate = [&](const Range& range) {
+        for (int i = range.start; i < range.end; i++)
+        {
+            Vec3i tsdf_idx = totalVolUnits[i];
+            _VolumeUnitMap::iterator it = _volumeUnits.find(tsdf_idx);
+            if (it == _volumeUnits.end())
+                return;
+
+            _VolumeUnit& volumeUnit = it->second;
+            if (volumeUnit.isActive)
+            {
+                //! The volume unit should already be added into the Volume from the allocator
+                volumeUnit.pVolume->integrate(depth, depthFactor, cameraPose, intrinsics, pixNorms);
+                //! Ensure all active volumeUnits are set to inactive for next integration
+                volumeUnit.isActive = false;
+            }
+        }
+    };
+
+    parallel_for_(__range, __integrate);
+    //__integrate(__range);
 }
 
 cv::Vec3i HashTSDFVolumeCPU::volumeToVolumeUnitIdx(cv::Point3f p) const

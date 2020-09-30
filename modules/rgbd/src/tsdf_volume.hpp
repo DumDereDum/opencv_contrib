@@ -60,6 +60,47 @@ class CV_EXPORTS_W NewVolume
         Mat volume;
 };
 
+class CV_EXPORTS_W _NewVolume
+{
+    public:
+        _NewVolume(float _voxelSize, cv::Matx44f _pose, float _raycastStepFactor,
+            /*TSDFVolume*/ float _truncDist, int _maxWeight, Point3i _resolution, bool zFirstMemOrder = true);
+
+        virtual ~_NewVolume() {};
+
+        void integrate(InputArray _depth, float depthFactor, const cv::Matx44f& cameraPose,
+            const cv::kinfu::Intr& intrinsics, InputArray pixNorms);
+
+        void reset();
+        
+        TsdfVoxel at(const cv::Vec3i& volumeIdx) const;
+
+
+    public:
+        // Volume
+        const float voxelSize;
+        const float voxelSizeInv;
+        const cv::Affine3f pose;
+        const float raycastStepFactor;
+
+        // TSDF Volume
+        Point3i volResolution;
+        WeightType maxWeight;
+
+        Point3f volSize;
+        float truncDist;
+        Vec4i volDims;
+        Vec8i neighbourCoords;
+
+        // TSDF Volume CPU
+        //Vec6f frameParams;
+        //Mat pixNorms;
+        // See zFirstMemOrder arg of parent class constructor
+        // for the array layout info
+        // Consist of Voxel elements
+        Mat volume;
+};
+
 }  // namespace kinfu
 }  // namespace cv
 #endif

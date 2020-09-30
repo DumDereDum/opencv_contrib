@@ -47,6 +47,19 @@ struct VolumeUnit
     bool isActive;
 };
 
+typedef cv::Mat _volume;
+struct _VolumeUnit
+{
+    _VolumeUnit() : pVolume(nullptr) {};
+    ~_VolumeUnit() = default;
+
+    //cv::Ptr<TSDFVolume> pVolume;
+    cv::Ptr<_NewVolume> pVolume;
+    _volume volume;
+    cv::Vec3i index;
+    bool isActive;
+};
+
 //! Spatial hashing
 struct tsdf_hash
 {
@@ -64,6 +77,7 @@ struct tsdf_hash
 
 typedef std::unordered_set<cv::Vec3i, tsdf_hash> VolumeUnitIndexSet;
 typedef std::unordered_map<cv::Vec3i, VolumeUnit, tsdf_hash> VolumeUnitMap;
+typedef std::unordered_map<cv::Vec3i, _VolumeUnit, tsdf_hash> _VolumeUnitMap;
 
 class HashTSDFVolumeCPU : public HashTSDFVolume
 {
@@ -107,6 +121,7 @@ class HashTSDFVolumeCPU : public HashTSDFVolume
        Mat pixNorms;
     //! Hashtable of individual smaller volume units
     VolumeUnitMap volumeUnits;
+    _VolumeUnitMap _volumeUnits;
 };
 
 
