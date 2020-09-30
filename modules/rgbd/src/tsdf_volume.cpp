@@ -356,7 +356,7 @@ namespace kinfu
     
     // use depth instead of distance (optimization)
     void _NewVolume::integrate(InputArray _depth, float depthFactor, const cv::Matx44f& cameraPose,
-        const cv::kinfu::Intr& intrinsics, InputArray _pixNorms)
+        const cv::kinfu::Intr& intrinsics, InputArray _pixNorms, InputArray _volume)
     {
         //std::cout << "integrate" << std::endl;
         CV_TRACE_FUNCTION();
@@ -368,31 +368,32 @@ namespace kinfu
 
         Range range(0, volResolution.x);
 
-        _NewVolume volume(*this);
+        Mat volume = _volume.getMat();
+        _NewVolume this_volume(*this);
         const Intr& intr(intrinsics);
         const Intr::Projector proj(intrinsics.makeProjector());
-        const cv::Affine3f vol2cam(Affine3f(cameraPose.inv()) * volume.pose);
-        const float truncDistInv(1.f / volume.truncDist);
+        const cv::Affine3f vol2cam(Affine3f(cameraPose.inv()) * this_volume.pose);
+        const float truncDistInv(1.f / this_volume.truncDist);
         const float dfac(1.f / depthFactor);
-        TsdfVoxel* volDataStart = volume.volume.ptr<TsdfVoxel>();;
+        TsdfVoxel* volDataStart = volume.ptr<TsdfVoxel>();;
 
         auto _IntegrateInvoker = [&](const Range& range)
         {
             //std::cout << "3";
             for (int x = range.start; x < range.end; x++)
             {
-                TsdfVoxel* volDataX = volDataStart + x * volume.volDims[0];
-                for (int y = 0; y < volume.volResolution.y; y++)
+                TsdfVoxel* volDataX = volDataStart + x * this_volume.volDims[0];
+                for (int y = 0; y < this_volume.volResolution.y; y++)
                 {
-                    TsdfVoxel* volDataY = volDataX + y * volume.volDims[1];
+                    TsdfVoxel* volDataY = volDataX + y * this_volume.volDims[1];
                     // optimization of camSpace transformation (vector addition instead of matmul at each z)
-                    Point3f basePt = vol2cam * (Point3f(float(x), float(y), 0.0f) * volume.voxelSize);
+                    Point3f basePt = vol2cam * (Point3f(float(x), float(y), 0.0f) * this_volume.voxelSize);
                     Point3f camSpacePt = basePt;
                     // zStep == vol2cam*(Point3f(x, y, 1)*voxelSize) - basePt;
                     // zStep == vol2cam*[Point3f(x, y, 1) - Point3f(x, y, 0)]*voxelSize
                     Point3f zStep = Point3f(vol2cam.matrix(0, 2),
                         vol2cam.matrix(1, 2),
-                        vol2cam.matrix(2, 2)) * volume.voxelSize;
+                        vol2cam.matrix(2, 2)) * this_volume.voxelSize;
                     int startZ, endZ;
                     if (abs(zStep.z) > 1e-5)
                     {
@@ -400,7 +401,7 @@ namespace kinfu
                         if (zStep.z > 0)
                         {
                             startZ = baseZ;
-                            endZ = volume.volResolution.z;
+                            endZ = this_volume.volResolution.z;
                         }
                         else
                         {
@@ -413,7 +414,7 @@ namespace kinfu
                         if (basePt.z > 0)
                         {
                             startZ = 0;
-                            endZ = volume.volResolution.z;
+                            endZ = this_volume.volResolution.z;
                         }
                         else
                         {
@@ -422,7 +423,7 @@ namespace kinfu
                         }
                     }
                     startZ = max(0, startZ);
-                    endZ = min(volume.volResolution.z, endZ);
+                    endZ = min(this_volume.volResolution.z, endZ);
 
                     for (int z = startZ; z < endZ; z++)
                     {
@@ -453,17 +454,17 @@ namespace kinfu
                         // possible alternative is:
                         // kftype sdf = norm(camSpacePt)*(v*dfac/camSpacePt.z - 1);
                         //std::cout << "sdf: " << sdf << std::endl;
-                        if (sdf >= -volume.truncDist)
+                        if (sdf >= -this_volume.truncDist)
                         {
                             TsdfType tsdf = floatToTsdf(fmin(1.f, sdf * truncDistInv));
 
-                            TsdfVoxel& voxel = volDataY[z * volume.volDims[2]];
+                            TsdfVoxel& voxel = volDataY[z * this_volume.volDims[2]];
                             WeightType& weight = voxel.weight;
                             TsdfType& value = voxel.tsdf;
                             //std::cout << value << std::endl;
                             // update TSDF
                             value = floatToTsdf((tsdfToFloat(value) * weight + tsdfToFloat(tsdf)) / (weight + 1));
-                            weight = min(int(weight + 1), int(volume.maxWeight));
+                            weight = min(int(weight + 1), int(this_volume.maxWeight));
                         }
                     }
                 }
@@ -477,14 +478,14 @@ namespace kinfu
     {
         CV_TRACE_FUNCTION();
 
-        volume.forEach<VecTsdfVoxel>([](VecTsdfVoxel& vv, const int* /* position */)
-            {
-                TsdfVoxel& v = reinterpret_cast<TsdfVoxel&>(vv);
-                v.tsdf = floatToTsdf(0.0f); v.weight = 0;
-            });
+        //volume.forEach<VecTsdfVoxel>([](VecTsdfVoxel& vv, const int* /* position */)
+        //    {
+        //        TsdfVoxel& v = reinterpret_cast<TsdfVoxel&>(vv);
+        //        v.tsdf = floatToTsdf(0.0f); v.weight = 0;
+        //    });
     }
 
-    TsdfVoxel _NewVolume::at(const cv::Vec3i& volumeIdx) const
+    TsdfVoxel _NewVolume::at(const cv::Vec3i& volumeIdx, InputArray _volume) const
     {
         //! Out of bounds
         if ((volumeIdx[0] >= volResolution.x || volumeIdx[0] < 0) ||
@@ -496,7 +497,7 @@ namespace kinfu
             dummy.weight = 0;
             return dummy;
         }
-
+        Mat volume = _volume.getMat();
         const TsdfVoxel* volData = volume.ptr<TsdfVoxel>();
         int coordBase =
             volumeIdx[0] * volDims[0] + volumeIdx[1] * volDims[1] + volumeIdx[2] * volDims[2];

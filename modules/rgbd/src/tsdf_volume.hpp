@@ -69,11 +69,11 @@ class CV_EXPORTS_W _NewVolume
         virtual ~_NewVolume() {};
 
         void integrate(InputArray _depth, float depthFactor, const cv::Matx44f& cameraPose,
-            const cv::kinfu::Intr& intrinsics, InputArray pixNorms);
+            const cv::kinfu::Intr& intrinsics, InputArray pixNorms, InputArray _volume);
 
         void reset();
         
-        TsdfVoxel at(const cv::Vec3i& volumeIdx) const;
+        TsdfVoxel at(const cv::Vec3i& volumeIdx, InputArray _volume) const;
 
 
     public:
@@ -98,7 +98,7 @@ class CV_EXPORTS_W _NewVolume
         // See zFirstMemOrder arg of parent class constructor
         // for the array layout info
         // Consist of Voxel elements
-        Mat volume;
+        //Mat volume;
 };
 
 }  // namespace kinfu
