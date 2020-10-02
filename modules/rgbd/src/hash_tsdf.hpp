@@ -55,8 +55,9 @@ struct _VolumeUnit
 
     //cv::Ptr<TSDFVolume> pVolume;
     cv::Ptr<_NewVolume> pVolume;
-    _volume volume;
+    //_volume volume;
     cv::Vec3i index;
+    unsigned int hash;
     bool isActive;
 };
 
@@ -78,6 +79,8 @@ struct tsdf_hash
 typedef std::unordered_set<cv::Vec3i, tsdf_hash> VolumeUnitIndexSet;
 typedef std::unordered_map<cv::Vec3i, VolumeUnit, tsdf_hash> VolumeUnitMap;
 typedef std::unordered_map<cv::Vec3i, _VolumeUnit, tsdf_hash> _VolumeUnitMap;
+
+
 
 class HashTSDFVolumeCPU : public HashTSDFVolume
 {
@@ -122,6 +125,8 @@ class HashTSDFVolumeCPU : public HashTSDFVolume
     //! Hashtable of individual smaller volume units
     VolumeUnitMap volumeUnits;
     _VolumeUnitMap _volumeUnits;
+    cv::Mat _VUnits;
+    unsigned int HashS;
 };
 
 

@@ -507,6 +507,17 @@ TEST(TSDF, valid_points)
 
 TEST(HashTSDF, valid_points)
 {
+    //Mat m({0,0,0});
+    //m.push_back(Mat({ 1,2,3 }));
+    //m.push_back(Mat({ 4,5,6 }));
+    //Mat m;// (1, 3, CV_32F);
+    //m.push_back(Mat(1, 3, CV_32F));
+    //m.push_back(Mat(1, 3, CV_32F));
+    
+    //std::cout << m << std::endl;
+    //std::cout << std::endl;
+    //auto t = m.row(1);
+    //std::cout << t.at<float>(0,1)<<std::endl;
     valid_points_test(true);
 }
 
