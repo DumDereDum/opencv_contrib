@@ -36,17 +36,6 @@ class HashTSDFVolume : public Volume
     bool zFirstMemOrder;
 };
 
-struct VolumeUnit
-{
-    VolumeUnit() : pVolume(nullptr){};
-    ~VolumeUnit() = default;
-
-    //cv::Ptr<TSDFVolume> pVolume;
-    cv::Ptr<NewVolume> pVolume;
-    cv::Vec3i index;
-    bool isActive;
-};
-
 typedef cv::Mat _volume;
 struct _VolumeUnit
 {
@@ -77,7 +66,6 @@ struct tsdf_hash
 };
 
 typedef std::unordered_set<cv::Vec3i, tsdf_hash> VolumeUnitIndexSet;
-typedef std::unordered_map<cv::Vec3i, VolumeUnit, tsdf_hash> VolumeUnitMap;
 typedef std::unordered_map<cv::Vec3i, _VolumeUnit, tsdf_hash> _VolumeUnitMap;
 
 
@@ -123,7 +111,6 @@ class HashTSDFVolumeCPU : public HashTSDFVolume
        Vec6f frameParams;
        Mat pixNorms;
     //! Hashtable of individual smaller volume units
-    VolumeUnitMap volumeUnits;
     _VolumeUnitMap _volumeUnits;
     cv::Mat _VUnits;
     unsigned int HashS;
